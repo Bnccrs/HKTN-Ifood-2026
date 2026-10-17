@@ -1,0 +1,20 @@
+# Arquivos de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Dependências (Node / Python)
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Logs e arquivos temporários
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Cache do OpenCode / MCP
+.opencode/
