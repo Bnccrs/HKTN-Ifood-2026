@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-   "ifit": {
+    "ifit": {
       "url": "https://consumer-mcp.ifood.com.br/marketplace",
       "oauth": {
         "clientId": "${IFOOD_MCP_CLIENT_ID}",
@@ -14,7 +14,9 @@
   "modelConfigs": {
     "customOverrides": [
       {
-        "match": { "model": "gemini-3.5-flash-lite" },
+        "match": {
+          "model": "gemini-3.5-flash-lite"
+        },
         "modelConfig": {
           "generateContentConfig": {
             "temperature": 0.7,
@@ -23,5 +25,10 @@
         }
       }
     ]
+  },
+  "security": {
+    "auth": {
+      "selectedType": "gemini-api-key"
+    }
   }
 }

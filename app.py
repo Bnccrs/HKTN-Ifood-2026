@@ -19,34 +19,43 @@ except ImportError:
     pass
 
 from agent.mock import empty_prefs, send_message
-from data import DISHES, DISH_BY_ID, RESTAURANT_BY_ID, RESTAURANTS, TAG_LABELS, brl
+from data import DISH_BY_ID, RESTAURANT_BY_ID, brl
 from voice import TranscriptionError, synthesize, transcribe
 
 st.set_page_config(page_title="Agente Ifit · Simulador iFood", page_icon="🍽️", layout="wide")
 
 CSS = """
 <style>
-.topbar { background:#ea1d2c; color:#fff; padding:10px 18px; border-radius:12px; margin-bottom:12px;
+header[data-testid="stHeader"] { display:none; }
+.block-container { padding-top:1rem; padding-bottom:4.5rem; }
+/* chat ocupa a altura que sobra na tela (o Streamlit fixa a altura no wrapper do container) */
+[data-testid="stLayoutWrapper"]:has(> .st-key-chat) { flex-basis:max(240px, calc(100vh - 400px)) !important;
+  height:max(240px, calc(100vh - 400px)) !important; }
+.st-key-chat { height:100% !important; }
+[data-testid="stAudio"] { display:none; }  /* resposta em voz toca sem ocupar espaço */
+.topbar { background:#ea1d2c; color:#fff; padding:6px 16px; border-radius:10px; margin-bottom:8px;
           display:flex; align-items:baseline; gap:12px; }
-.topbar .logo { font-weight:800; font-size:26px; font-style:italic; letter-spacing:-1px; }
+.topbar .logo { font-weight:800; font-size:22px; font-style:italic; letter-spacing:-1px; }
 .topbar .sub { font-size:13px; opacity:.9; }
-.card { border:1px solid #e8e4e2; border-radius:12px; background:#fff; overflow:hidden; margin-top:4px; }
-.card.rec { border:2px solid #ea1d2c; box-shadow:0 6px 18px #ea1d2c22; }
-.card .badge { background:#ea1d2c; color:#fff; font-size:11px; font-weight:700; padding:4px 10px; }
-.card .art { height:70px; display:flex; align-items:center; justify-content:center; font-size:38px; overflow:hidden; }
+.empty { border:2px dashed #e8e4e2; border-radius:12px; color:#7a7573; text-align:center;
+         padding:120px 24px; font-size:15px; }
+.card { display:flex; gap:10px; height:128px; border:1px solid #e8e4e2; border-radius:12px; background:#fff;
+        overflow:hidden; }
+.card.rec { border:2px solid #ea1d2c; }
+.card .art { flex:0 0 104px; display:flex; align-items:center; justify-content:center; font-size:38px; overflow:hidden; }
 .card .art img { width:100%; height:100%; object-fit:cover; }
-.card .body { padding:8px 12px 10px; }
-.card h4 { margin:0 0 2px; font-size:15px; }
-.card .meta { color:#7a7573; font-size:12px; }
-.card .desc { color:#7a7573; font-size:12px; margin:4px 0 6px; line-height:1.35; }
-.chips { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
-.chip { font-size:11px; background:#f5f3f2; border-radius:6px; padding:2px 6px; }
+.card .body { padding:8px 10px 8px 0; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.card h4 { margin:0; padding:0; font-size:14px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .rank { color:#ea1d2c; font-weight:800; margin-right:4px; }
+.card .meta { color:#7a7573; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .macros { font-size:12px; font-weight:600; color:#3d3a39; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chips { display:flex; flex-wrap:wrap; gap:4px; }
 .tag { font-size:11px; border-radius:999px; padding:2px 8px; background:#eef6f0; color:#226b3d; }
 .tag.warn { background:#fdf3e2; color:#b7791f; }
 .tag.ok { background:#e8f3fb; color:#1d6fa5; }
 .tag.bad { background:#fde8e8; color:#c4131f; }
-.reason { font-size:12px; background:#fff4f4; color:#c4131f; border-radius:8px; padding:6px 8px; margin-top:4px; }
-.price { font-weight:700; margin-top:6px; }
+.reason { font-size:12px; color:#c4131f; line-height:1.3; display:-webkit-box; -webkit-line-clamp:3;
+          -webkit-box-orient:vertical; overflow:hidden; }
 .pref-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#7a7573; margin:8px 0 4px; }
 </style>
 """
@@ -100,6 +109,10 @@ def reset_demo():
 
 def add_to_cart(dish_id: str):
     st.session_state.cart.append(dish_id)
+
+
+def use_suggestion(text: str):
+    st.session_state.pending_text = text
 
 
 def confirm_add_to_ifood_cart(rank: int, item: dict):
@@ -164,35 +177,30 @@ def live_dish(item: dict) -> dict:
 def card_html(dish: dict, reason: str | None = None, rank: int | None = None) -> str:
     rest = dish.get("restaurant_info") or RESTAURANT_BY_ID[dish["restaurant_id"]]
     e = html.escape
-    badge = f'<div class="badge">⭐ Indicado pelo agente · #{rank}</div>' if reason else ""
-    macros = "".join(
-        f'<span class="chip">{value:g}{unit}</span>'
+    macros = " · ".join(
+        f"{value:g}{unit}"
         for value, unit in ((dish["kcal"], " kcal"), (dish["protein"], "g prot"), (dish["carbs"], "g carb"), (dish["fat"], "g gord"))
         if value is not None
     )
-    tags = "".join(f'<span class="tag">{e(TAG_LABELS.get(t, t))}</span>' for t in dish["tags"])
     image = dish.get("image_url") or ""
     art = f'<img src="{e(image)}" alt="">' if image.startswith(("https://", "http://")) else dish["emoji"]
     meta = " · ".join(p for p in (e(rest["name"]), f'⭐ {rest["rating"]}' if rest["rating"] else "", e(rest["eta"])) if p)
+    rank_html = f'<span class="rank">#{rank}</span>' if rank else ""
     reason_html = f'<div class="reason">💬 {e(reason)}</div>' if reason else ""
     return f"""
-    <div class="card {'rec' if reason else ''}">
-      {badge}
+    <div class="card {'rec' if rank == 1 else ''}">
       <div class="art" style="background:linear-gradient(135deg,{rest['color']}22,{rest['color']}55)">{art}</div>
       <div class="body">
-        <h4>{e(dish['name'])}</h4>
+        <h4 title="{e(dish['name'])}">{rank_html}{e(dish['name'])}</h4>
         <div class="meta">{meta}</div>
-        <div class="desc">{e(dish['description'])}</div>
-        <div class="chips">{macros}</div>
-        <div class="chips">{tags}</div>
+        <div class="macros">{macros}</div>
         {reason_html}
-        <div class="price">{brl(dish['price'])}</div>
       </div>
     </div>
     """
 
 
-def render_cards(items, prefix: str, per_row: int = 3, live: bool = False):
+def render_cards(items, prefix: str, per_row: int = 2, live: bool = False):
     """items: lista de (dish, reason, rank). live=True: pratos reais, adicionados pelo agente no iFood."""
     for start in range(0, len(items), per_row):
         cols = st.columns(per_row)
@@ -216,9 +224,8 @@ def render_prefs(prefs: dict):
         ("dislikes", "Não gosta", "bad"),
     ]
     if not prefs["budget"] and not any(prefs[k] for k, _, _ in groups):
-        st.caption("O agente ainda não aprendeu nada sobre você. Fale ou digite suas preferências.")
         return
-    out = []
+    out = ['<div class="pref-label">Seu perfil</div>']
     for key, label, cls in groups:
         if prefs[key]:
             pills = "".join(f'<span class="tag {cls}">{html.escape(v)}</span> ' for v in prefs[key])
@@ -240,33 +247,28 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-left, right = st.columns([5, 7], gap="large")
+left, right = st.columns([5, 7], gap="medium")
 
 # --- Coluna do agente: a conversa é desenhada depois (precisa do estado atualizado)
 with left:
-    st.subheader("Agente")
-    chat_box = st.container(height=420)
-
-    suggestion = None
-    if len(st.session_state.messages) <= 1:
-        for s in SUGGESTIONS:
-            if st.button(s, key=f"sug_{s}", use_container_width=True):
-                suggestion = s
+    chat_box = st.container(height=380, key="chat", autoscroll=True)
+    with chat_box:
+        history_area = st.container()
+        suggestions_area = st.container()
 
     audio = st.audio_input(
-        "🎙 Clique para gravar, fale e clique de novo para parar",
+        "Gravar mensagem de voz",
         sample_rate=16000,
         key=f"audio_{st.session_state.audio_n}",
+        label_visibility="collapsed",
     )
     status_box = st.empty()
 
-typed = st.chat_input("Ou digite aqui...")
+typed = st.chat_input("Digite o que você quer comer...")
 
-# --- Descobre o que o usuário disse neste ciclo (sugestão > texto > voz)
+# --- Descobre o que o usuário disse neste ciclo (sugestão/botão > texto > voz)
 user_text, via = None, "texto"
-if suggestion:
-    user_text = suggestion
-elif st.session_state.pending_text:
+if st.session_state.pending_text:  # sugestão ou botão "Adicionar"
     user_text, st.session_state.pending_text = st.session_state.pending_text, None
 elif typed:
     user_text = typed
@@ -295,7 +297,7 @@ if user_text:
         reply_audio = synthesize(speakable(reply))
 
 # --- Desenha a conversa com o estado já atualizado
-with chat_box:
+with history_area:
     for m in st.session_state.messages:
         if m["role"] == "user":
             with st.chat_message("user"):
@@ -304,71 +306,57 @@ with chat_box:
             with st.chat_message("assistant"):
                 st.write(m["text"])
 
+if len(st.session_state.messages) <= 1:
+    with suggestions_area:
+        for s in SUGGESTIONS:
+            st.button(s, key=f"sug_{s}", on_click=use_suggestion, args=(s,), use_container_width=True)
+
 if reply_audio:
     with left:
         st.audio(reply_audio, format="audio/mp3", autoplay=True)
 
-# --- Vitrine
+# --- Vitrine: só mostra pratos depois que o agente responder
 with right:
     live = st.session_state.live_menu
     if live:
-        # Cardápio completo = pratos reais do iFood da última resposta do Gemini
-        st.subheader("Cardápio completo")
-        st.caption("Pratos reais encontrados pelo agente no iFood. Clique em Adicionar para confirmar o pedido ao agente.")
-        render_cards([(live_dish(m), m["reason"] or None, i + 1) for i, m in enumerate(live)], "live", live=True)
-    else:
-        recs = [
+        items = [(live_dish(m), m["reason"] or None, i + 1) for i, m in enumerate(live)]
+    else:  # agente simulado
+        items = [
             (DISH_BY_ID[r["dish_id"]], r["reason"], i + 1)
             for i, r in enumerate(st.session_state.recs)
             if r["dish_id"] in DISH_BY_ID
         ]
-        if recs:
-            st.subheader("⭐ Recomendados para você")
-            render_cards(recs, "rec")
+    if items:
+        st.markdown("**Opções para você** · clique em Adicionar para confirmar com o agente")
+        render_cards(items[:4], "opt", live=bool(live))
+    else:
+        st.markdown(
+            '<div class="empty">🍽️<br>Conte ao agente o que você quer comer.<br>'
+            "As opções aparecem aqui.</div>",
+            unsafe_allow_html=True,
+        )
 
-        st.subheader("Restaurantes")
-        options = ["Todos"] + [f'{r["emoji"]} {r["name"]}' for r in RESTAURANTS]
-        choice = st.radio("Filtrar por restaurante", options, horizontal=True, label_visibility="collapsed")
-        selected = None if choice == "Todos" else RESTAURANTS[options.index(choice) - 1]
-        if selected:
-            st.caption(
-                f'{selected["cuisine"]} · ⭐ {selected["rating"]} · {selected["eta"]} · '
-                f'entrega {"grátis" if selected["fee"] == 0 else brl(selected["fee"])}'
-            )
-
-        rec_ids = {d["id"] for d, _, _ in recs}
-        menu = [
-            (d, None, None)
-            for d in DISHES
-            if d["id"] not in rec_ids and (selected is None or d["restaurant_id"] == selected["id"])
-        ]
-        st.subheader(selected["name"] if selected else "Cardápio completo")
-        render_cards(menu, "menu")
-
-# --- Barra lateral: perfil, carrinho, log
+# --- Barra lateral: carrinho, perfil, opções
 with st.sidebar:
-    st.header("Perfil do usuário")
-    render_prefs(st.session_state.prefs)
-
-    st.divider()
     ifood_cart = st.session_state.ifood_cart
     if ifood_cart:
         count = sum(i["quantity"] for i in ifood_cart["items"])
-        st.metric("🛍 Carrinho iFood", f"{count} itens", brl(ifood_cart["total"]), delta_color="off")
+        st.metric(f"🛍 Carrinho iFood · {count} itens", brl(ifood_cart["total"]))
         for item in ifood_cart["items"]:
             st.caption(f'{item["quantity"]}× {item["name"]} — {item["restaurant"]} · {brl(item["price"])}')
         st.caption("Finalize pagamento e pedido no app do iFood.")
     else:
         cart = [DISH_BY_ID[i] for i in st.session_state.cart]
-        st.metric("🛍 Carrinho simulado", f"{len(cart)} itens", brl(sum(d["price"] for d in cart)), delta_color="off")
+        st.metric(f"🛍 Carrinho · {len(cart)} itens", brl(sum(d["price"] for d in cart)))
+
+    render_prefs(st.session_state.prefs)
 
     st.divider()
-    st.toggle("Voz do agente (TTS)", key="tts_on")
-    st.button("Reiniciar demo", on_click=reset_demo, use_container_width=True)
+    st.toggle("Voz do agente", key="tts_on")
+    st.button("Nova conversa", on_click=reset_demo, use_container_width=True)
 
-    st.divider()
     log = st.session_state.tool_log
-    with st.expander(f"Log de tool calls ({len(log)})", expanded=bool(log)):
+    with st.expander(f"Log de tool calls ({len(log)})"):
         if not log:
             st.caption("Nenhuma chamada ainda.")
         for entry in reversed(log):  # mais recentes primeiro
