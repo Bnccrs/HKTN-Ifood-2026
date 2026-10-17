@@ -10,8 +10,18 @@ Contrato (o mesmo que um backend /chat real deve seguir):
         "tool_calls": [{"name": str, "args": dict, "result": dict}],
     }
 
-Sem AGENT_API_URL, usa um agente simulado local (regras simples) só para testar a interface.
-Com AGENT_API_URL, faz POST {AGENT_API_URL}/chat com esse mesmo contrato.
+Ordem de escolha do agente:
+  1. AGENT_API_URL definido  -> POST {AGENT_API_URL}/chat com esse mesmo contrato.
+  2. AGENT_ENGINE=gemini     -> agente Gemini CLI + iFood MCP (agent/gemini_cli.py).
+  3. caso contrário          -> agente simulado local (regras simples) só para testar a interface.
+
+Campos opcionais da saída (agente Gemini):
+    "menu": [{"id", "merchant_id", "name", "restaurant", "description", "price", "eta",
+              "kcal", "protein", "carbs", "fat", "tags", "reason", "image_url"}]
+    "cart": {"cart_id", "items": [{"item_id", "name", "restaurant", "price", "quantity"}], "total"}
+
+Campo opcional "session_id": identifica a conversa no agente (o Gemini CLI guarda o histórico
+na própria sessão); o front-end manda o último session_id recebido.
 """
 
 import json
@@ -26,18 +36,22 @@ def empty_prefs() -> dict:
     return {"restrictions": [], "goals": [], "likes": [], "dislikes": [], "budget": None}
 
 
-def send_message(message: str, preferences: dict, history: list) -> dict:
+def send_message(message: str, preferences: dict, history: list, session_id: str | None = None) -> dict:
     api_url = os.getenv("AGENT_API_URL", "").strip()
     if api_url:
         import requests
 
         resp = requests.post(
             f"{api_url.rstrip('/')}/chat",
-            json={"message": message, "preferences": preferences, "history": history},
+            json={"message": message, "preferences": preferences, "history": history, "session_id": session_id},
             timeout=60,
         )
         resp.raise_for_status()
         return resp.json()
+    if os.getenv("AGENT_ENGINE", "").strip().lower() == "gemini":
+        from agent.gemini_cli import gemini_cli_agent
+
+        return gemini_cli_agent(message, preferences, session_id)
     return mock_agent(message, preferences)
 
 
