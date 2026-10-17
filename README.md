@@ -28,3 +28,5 @@ O **NutriFood Agent** atua como um nutricionista autônomo:
 ---
 
 ## 🔄 Arquitetura do Agente
+
+---
