@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+   "ifit": {
+      "url": "https://consumer-mcp.ifood.com.br/marketplace",
+      "oauth": {
+        "clientId": "GVrogDkJYK7axHTIYlRZ5zXwJvoiYRlx",
+        "clientSecret": "4aAxQk285MQb8b6A5R6mfba2Fc6-6yPFDXE--DksUCqKcVxdlIb8jLGmvJYoUCaJ"
+      }
+    }
+  }
+}

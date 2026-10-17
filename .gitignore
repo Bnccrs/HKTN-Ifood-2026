@@ -17,3 +17,6 @@ venv/
 
 # Cache do OpenCode / MCP
 .opencode/
+
+# Sessões de Teste
+gemini-session.txt
