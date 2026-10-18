@@ -1,5 +1,7 @@
 # 🥗 IFit Agent — Copiloto Nutricional Autônomo com iFood MCP & Gemini API
 
+![LOGO](IFit-Logo.png)
+
 Um agente autônomo de inteligência artificial que converte metas de saúde (calorias, macronutrientes e restrições alimentares) em opções reais de refeições no iFood. O sistema combina o raciocínio analítico do **Google Gemini API** com a integração em tempo real do **Model Context Protocol (MCP)**.
 
 ---

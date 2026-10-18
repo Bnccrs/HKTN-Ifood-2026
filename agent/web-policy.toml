@@ -1,0 +1,25 @@
+# Política do Gemini CLI quando ele é chamado pelo site (agent/gemini_cli.py).
+# O prompt vem de qualquer visitante, então o agente só pode usar o MCP do iFood.
+# A busca do Google fica bloqueada: a cota dela costuma estar esgotada (429) e o CLI
+# fica tentando de novo até estourar o GEMINI_TIMEOUT. Shell, leitura/escrita de arquivos etc. ficam bloqueados.
+
+[[rule]]
+toolName = "*"
+decision = "deny"
+priority = 100
+denyMessage = "No modo web, só as ferramentas do iFood MCP estão liberadas."
+
+[[rule]]
+toolName = "*"
+mcpName = "ifood"
+decision = "allow"
+priority = 200
+
+# O site pode montar o carrinho no iFood, mas nunca fechar pedido, escolher pagamento,
+# aplicar cupom ou cadastrar endereço: isso fica para o app oficial, com o usuário no controle.
+[[rule]]
+toolName = ["submitOrder", "setCartPayment", "setVoucher", "removeVoucher", "createAddress"]
+mcpName = "ifood"
+decision = "deny"
+priority = 300
+denyMessage = "Pelo site o agente só monta o carrinho; finalizar pedido, pagamento, cupons e endereços devem ser feitos no app do iFood."

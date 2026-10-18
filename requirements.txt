@@ -1,0 +1,8 @@
+streamlit>=1.40
+SpeechRecognition>=3.10
+soundfile>=0.12
+gTTS>=2.5
+requests>=2.31
+python-dotenv>=1.0
+# Opcional, só se usar STT_ENGINE=openai:
+# openai>=1.40
