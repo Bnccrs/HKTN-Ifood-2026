@@ -1,8 +1,8 @@
-# 🥗 IFit Agent — Copiloto Nutricional Autônomo com iFood MCP & Gemini API
+# 🥗 IFit Agent — Copiloto Nutricional Autônomo com iFood MCP & Gemini CLI
 
 ![IFit Logo](IFit-Logo.png)
 
-Um agente autônomo de inteligência artificial que converte metas de saúde (calorias, macronutrientes e restrições alimentares) em opções reais de refeições no iFood. O sistema combina o raciocínio analítico do **Google Gemini API** com a estrutura de integração do **Model Context Protocol (MCP)** do Ifood e uma interface multimodal em **Streamlit** com suporte a voz e texto.
+Um agente autônomo de inteligência artificial que converte metas de saúde (calorias, macronutrientes e restrições alimentares) em opções reais de refeições no iFood. O sistema combina o raciocínio analítico do **Google Gemini** (via **Gemini CLI**) com a estrutura de integração do **Model Context Protocol (MCP)** do Ifood e uma interface multimodal em **Streamlit** com suporte a voz e texto.
 
 ---
 
@@ -21,45 +21,50 @@ O **IFit Agent** atua como um nutricionista autônomo integrado ao fluxo do iFoo
 
 ## 02. Desenho de Solução
 
-O agente processa o pedido do usuário através de um fluxo ponta a ponta que conecta voz, processamento de linguagem natural e banco de dados nutricional.
+O agente processa o pedido do usuário através de um fluxo ponta a ponta que conecta voz, processamento de linguagem natural e o catálogo real do iFood.
 
 ```text
-[Usuário (Voz/Texto)] 
+[Usuário (Voz/Texto)]
          │
          ▼
-[Interface Streamlit (app.py)] ──(STT Transcrição)──► [Texto do Usuário]
+[Interface Streamlit (app.py)] ──(STT via voice.py)──► [Texto do Usuário]
                                                               │
                                                               ▼
-[FastAPI Backend (server.py)] ◄───────────────────────────────┘
+[Seletor de Agente (agent/mock.py → send_message)] ◄──────────┘
          │
-         ├─► [Google Gemini Flash] (System Prompt + JSON Schema)
-         │           │
-         │           ▼ (Análise, Extração de Preferências e Ranking)
+         ├─► AGENT_ENGINE=gemini ─► [Gemini CLI (agent/gemini_cli.py)]
+         │                                  │  GEMINI.md + agent/web-instructions.md
+         │                                  │  Política: agent/web-policy.toml
+         │                                  ▼
+         │                          [iFood MCP] (busca de pratos e carrinho real)
          │
-         └─► [Base de Dados / iFood MCP Catalog] (Cross de Pratos e Restaurantes)
+         ├─► AGENT_API_URL ───────► [Backend externo] (POST /chat, mesmo contrato)
+         │
+         └─► (padrão) ────────────► [Agente simulado] (regras locais + catálogo de data.py)
                      │
                      ▼
-[Resposta Estruturada em JSON]
+[Resposta Estruturada (texto + opções + carrinho)]
          │
-         ├─► Atualização do Perfil (Restrições, Metas, Orçamento)
-         ├─► Resposta Curta para Voz (TTS via gTTS)
-         └─► Top 3 Cards Recomendados + Explicabilidade Nutricional
-         └─► Opção de adicionar à Sacola de Compras do usuário
+         ├─► Resposta curta falada (TTS via gTTS)
+         ├─► 3 a 4 Cards de opções + justificativa nutricional
+         ├─► Atualização do Perfil (modo simulado)
+         └─► Carrinho do iFood montado pelo agente (modo Gemini)
 ```
 
 ### Fluxo Geral da Solução:
-1. **Entrada Multimodal:** O usuário envia uma mensagem por áudio ou texto. Em caso de áudio, o motor STT (*SpeechRecognition*) realiza a transcrição.
-2. **Orquestração e Raciocínio (Gemini Flash):** O backend FastAPI recebe a mensagem, o histórico recente e o perfil atual. O modelo executa o prompt com um *System Instruction* rigoroso que força a saída em formato JSON estruturado.
-3. **Consulta ao Catálogo (MCP):** O agente cruza os critérios nutricionais estimados com os pratos cadastrados no catálogo do iFood (macros, tags de restrição, preços e restaurantes).
-4. **Devolutiva ao Usuário:** A interface exibe a mensagem no chat, sintetiza a voz de resposta do agente via TTS (*gTTS*), atualiza o perfil visual na barra lateral e renderiza os cards de recomendação com botões de compra.
+1. **Entrada Multimodal:** O usuário envia uma mensagem por áudio ou texto. Em caso de áudio, `voice.py` transcreve com *SpeechRecognition* (Google, padrão) ou *Whisper* da OpenAI (`STT_ENGINE=openai`).
+2. **Orquestração e Raciocínio (Gemini CLI):** O `app.py` chama o agente diretamente, no mesmo processo. No modo Gemini, cada mensagem vira uma chamada *headless* ao Gemini CLI, que carrega o `GEMINI.md` (persona e regras nutricionais) e as instruções do site. A memória da conversa fica na sessão do próprio CLI (`--resume <session_id>`).
+3. **Consulta ao Catálogo (iFood MCP):** O agente busca pratos, restaurantes, preços e tempos de entrega reais pelo MCP do iFood e estima os macronutrientes com base nas tabelas TACO/TBCA/USDA. Sem o Gemini, o agente simulado usa o catálogo fictício de `data.py`.
+4. **Devolutiva ao Usuário:** O agente termina a resposta com um bloco ` ```ifit ` em JSON (opções e carrinho), que o site extrai para renderizar os cards. O texto restante é exibido no chat e lido em voz via TTS (*gTTS*).
 
 ---
 
 ## 03. Racional da Experiência (UX)
 
 * **Voz em Primeiro Lugar (Voice-First):** Fazer um pedido por voz reduz o atrito e permite uma conversação natural, simulando uma consulta rápida com um nutricionista.
-* **Explicabilidade Nutricional (Por que este prato?):** Cada refeição recomendada exibe um selo destacado contendo a justificativa clara da escolha (ex: *"45g de proteína e 520 kcal por R$ 32,90"*).
-* **Perfil Vivo e Transparente:** O usuário acompanha em tempo real suas preferências sendo extraídas e organizadas em tags visuais (Restrições, Objetivos, Gostos, Orçamento) na barra lateral.
+* **Explicabilidade Nutricional (Por que este prato?):** Cada refeição recomendada exibe a justificativa clara da escolha (ex: *"45g de proteína e 520 kcal por R$ 32,90"*). Os macros são estimativas do agente (TACO/TBCA/USDA), sinalizadas com nota de incerteza quando necessário.
+* **Perfil Vivo e Transparente:** No modo simulado, as preferências extraídas aparecem em tags visuais (Restrições, Objetivos, Gostos, Não gosta, Orçamento) na barra lateral. No modo Gemini, o perfil é mantido pelo próprio agente ao longo da conversa.
+* **Usuário no Controle do Pedido:** O agente apenas monta o carrinho no iFood após confirmação explícita. Finalizar pedido, pagamento, cupons e endereços ficam bloqueados pela política do site e devem ser feitos no app do iFood.
 * **Visibilidade dos Processos da IA (Tool Calls Log):** A barra lateral expõe o log das chamadas de ferramentas e pesquisas realizadas pelo agente, construindo confiança e transparência.
 
 ---
@@ -71,7 +76,8 @@ A interface web foi desenvolvida em **Streamlit**, organizada para garantir clar
 | Componente | Função e Detalhes da Experiência |
 | :--- | :--- |
 | **Painel de Conversação (Esquerda)** | Chat interativo, gravador de áudio (`st.audio_input`), reprodutor automático de voz do agente e sugestões rápidas em 1 clique. |
-| **Vitrine Inteligente (Direita)** | Painel com os **"⭐ Recomendados para você"** em destaque visual (borda vermelha iFood, badges de macros e botão de adição ao carrinho), seguido pelo cardápio filtrável. |
+| **Vitrine de Opções (Direita)** | Até 4 cards com foto, preço, tempo de entrega, macros e motivo da escolha; a opção #1 ganha borda vermelha iFood. O botão "Adicionar" confirma a opção com o agente (modo Gemini) ou a coloca no carrinho local (modo simulado). |
+| **Barra Lateral** | Carrinho (do iFood ou local), perfil do usuário, liga/desliga da voz, "Nova conversa" e log das tool calls. |
 
 ---
 
@@ -80,14 +86,16 @@ A interface web foi desenvolvida em **Streamlit**, organizada para garantir clar
 
 ### Arquitetura do Sistema
 * **Frontend:** Streamlit 1.40+ (`app.py`) responsável pela captura multimodal, renderização de cards e gerenciamento do estado da sessão (`st.session_state`).
-* **Backend:** FastAPI + Uvicorn (`server.py`) servindo o endpoint de alto desempenho `/chat`.
-* **Engine de IA:** `google-genai` utilizando o modelo `gemini-2.0-flash`, configurado com `GenerateContentConfig` para imposição de `response_mime_type="application/json"` e `temperature=0.2`.
-* **Processamento de Áudio:** `speech_recognition` / `soundfile` para transcrição (STT) e `gTTS` para síntese falada (TTS).
+* **Camada do Agente:** `agent/mock.py` define o contrato da resposta e escolhe o motor: Gemini CLI (`AGENT_ENGINE=gemini`), backend externo (`AGENT_API_URL`) ou agente simulado local.
+* **Engine de IA:** [Gemini CLI](https://github.com/google-gemini/gemini-cli) com o modelo `gemini-3.5-flash-lite` (`temperature=0.7`), configurado em `.gemini/settings.json` e `GEMINI.md`.
+* **Integração iFood:** servidor MCP `consumer-mcp.ifood.com.br` com OAuth. A política `agent/web-policy.toml` libera apenas as ferramentas do iFood e bloqueia web search, shell, arquivos e finalização de pedidos.
+* **Dados Simulados:** `data.py` contém um catálogo fictício de restaurantes e pratos usado pelo agente simulado.
+* **Processamento de Áudio:** `speech_recognition` / `soundfile` (ou Whisper da OpenAI) para transcrição (STT) e `gTTS` para síntese falada (TTS).
 
 ### Decisões Técnicas Principais
-1. **Baixa Latência com Gemini 2.0 Flash:** Tempo de resposta reduzido (< 1s), fundamental para manter a fluidez de interações conversacionais por voz.
-2. **Schema Rígido via JSON Output:** Garantia de que a LLM retorne um payload previsível, evitando erros de sintaxe e assegurando a sincronização do perfil do usuário e dos cards.
-3. **Desacoplamento (Frontend/Backend):** Separação estrita entre a API do agente (`server.py`) e a interface visual (`app.py`), viabilizando integrações futuras com apps mobile ou WhatsApp.
+1. **Gemini CLI como Orquestrador:** O CLI já oferece suporte nativo a MCP, OAuth, políticas de ferramentas e memória de sessão, dispensando um backend próprio.
+2. **Saída Estruturada via Bloco ```ifit```:** O agente responde em texto e anexa um JSON com as opções e o carrinho, extraído pelo site para renderizar os cards. Se o bloco vier inválido, a conversa continua e apenas os cards não são atualizados.
+3. **Agente Plugável:** O contrato único de `send_message` permite trocar o motor (simulado, Gemini CLI ou um backend `/chat` externo) sem alterar a interface, viabilizando integrações futuras com apps mobile ou WhatsApp.
 
 ---
 
@@ -120,15 +128,16 @@ source venv/bin/activate
 
 # 3. Instale as dependências
 pip install -r requirements.txt
-pip install fastapi uvicorn google-genai
+npm i -g @google/gemini-cli   # necessário só para o modo Gemini
 
 # 4. Configure o arquivo de ambiente (.env)
 cp .env.example .env
-# Insira sua GEMINI_API_KEY no arquivo .env
+# AGENT_ENGINE=gemini  -> usa o Gemini CLI + iFood MCP (preencha IFOOD_MCP_CLIENT_ID e IFOOD_MCP_CLIENT_SECRET)
+# AGENT_ENGINE vazio   -> usa o agente simulado com dados fictícios (sem chaves)
+# No modo Gemini, adicione também GEMINI_API_KEY=<sua chave> ao .env (repassada ao Gemini CLI)
 
-# 5. Inicie a API do Backend
-python server.py
-
-# 6. Em outro terminal (com o venv ativo), inicie o Frontend
+# 5. Inicie a aplicação
 streamlit run app.py
 ```
+
+Variáveis opcionais (`.env.example`): `GEMINI_MODEL`, `GEMINI_TIMEOUT`, `GEMINI_BIN`, `STT_ENGINE` (`google` ou `openai` + `OPENAI_API_KEY`) e `AGENT_API_URL` (usa um backend externo `/chat` no lugar dos agentes locais).
