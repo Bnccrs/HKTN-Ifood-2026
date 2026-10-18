@@ -10,7 +10,7 @@ denyMessage = "No modo web, só as ferramentas do iFood MCP e a busca do Google 
 
 [[rule]]
 toolName = "*"
-mcpName = "ifit"
+mcpName = "ifood"
 decision = "allow"
 priority = 200
 
@@ -23,7 +23,7 @@ priority = 200
 # aplicar cupom ou cadastrar endereço: isso fica para o app oficial, com o usuário no controle.
 [[rule]]
 toolName = ["submitOrder", "setCartPayment", "setVoucher", "removeVoucher", "createAddress"]
-mcpName = "ifit"
+mcpName = "ifood"
 decision = "deny"
 priority = 300
 denyMessage = "Pelo site o agente só monta o carrinho; finalizar pedido, pagamento, cupons e endereços devem ser feitos no app do iFood."

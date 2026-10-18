@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "ifit": {
-      "url": "https://consumer-mcp.ifood.com.br/marketplace",
+    "ifood": {
+      "httpUrl": "https://consumer-mcp.ifood.com.br/marketplace",
       "oauth": {
         "clientId": "${IFOOD_MCP_CLIENT_ID}",
         "clientSecret": "${IFOOD_MCP_CLIENT_SECRET}"

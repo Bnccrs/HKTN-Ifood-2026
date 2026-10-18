@@ -4,7 +4,7 @@ Cada mensagem do site vira uma chamada headless:
 
     gemini -p "<mensagem>" -o stream-json --policy agent/web-policy.toml [--resume <session_id>]
 
-executada na raiz do projeto, para o CLI carregar GEMINI.md e o servidor MCP "ifit".
+executada na raiz do projeto, para o CLI carregar GEMINI.md e o servidor MCP "ifood".
 Antes da mensagem vão as instruções de agent/web-instructions.md, que pedem ao Gemini um bloco
 ```ifit {json}``` no fim da resposta com os pratos apresentados e o estado do carrinho do iFood.
 Esse bloco é removido do texto e devolvido em "menu" e "cart".
@@ -42,7 +42,7 @@ def _command(message: str, session_id: str | None) -> list:
         binary, "-p", message,
         "-o", "stream-json",
         "--policy", str(POLICY_FILE),
-        "--allowed-mcp-server-names", "ifit",
+        "--allowed-mcp-server-names", "ifood",
     ]
     if session_id:
         cmd += ["--resume", session_id]
@@ -132,7 +132,9 @@ def gemini_cli_agent(message: str, preferences: dict, session_id: str | None = N
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
-        raise GeminiCLIError(f"o Gemini não respondeu em {timeout}s") from exc
+        stderr = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else exc.stderr or ""
+        hint = f" ({_error_hint(stderr)})" if stderr.strip() else ""
+        raise GeminiCLIError(f"o Gemini não respondeu em {timeout}s{hint}") from exc
 
     reply_parts, tool_calls, by_id = [], [], {}
     new_session = session_id
