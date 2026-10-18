@@ -1,21 +1,17 @@
 # Política do Gemini CLI quando ele é chamado pelo site (agent/gemini_cli.py).
-# O prompt vem de qualquer visitante, então o agente só pode usar o MCP do iFood
-# e a busca do Google (validação nutricional). Shell, leitura/escrita de arquivos etc. ficam bloqueados.
+# O prompt vem de qualquer visitante, então o agente só pode usar o MCP do iFood.
+# A busca do Google fica bloqueada: a cota dela costuma estar esgotada (429) e o CLI
+# fica tentando de novo até estourar o GEMINI_TIMEOUT. Shell, leitura/escrita de arquivos etc. ficam bloqueados.
 
 [[rule]]
 toolName = "*"
 decision = "deny"
 priority = 100
-denyMessage = "No modo web, só as ferramentas do iFood MCP e a busca do Google estão liberadas."
+denyMessage = "No modo web, só as ferramentas do iFood MCP estão liberadas."
 
 [[rule]]
 toolName = "*"
 mcpName = "ifood"
-decision = "allow"
-priority = 200
-
-[[rule]]
-toolName = "google_web_search"
 decision = "allow"
 priority = 200
 
