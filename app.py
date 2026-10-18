@@ -22,7 +22,7 @@ from agent.mock import empty_prefs, send_message
 from data import DISH_BY_ID, RESTAURANT_BY_ID, brl
 from voice import TranscriptionError, synthesize, transcribe
 
-st.set_page_config(page_title="Agente Ifit · Simulador iFood", page_icon="🍽️", layout="wide")
+st.set_page_config(page_title="Agente iFit · Simulador iFood", page_icon="🍽️", layout="wide")
 
 CSS = """
 <style>
@@ -33,28 +33,28 @@ header[data-testid="stHeader"] { display:none; }
   height:max(240px, calc(100vh - 400px)) !important; }
 .st-key-chat { height:100% !important; }
 [data-testid="stAudio"] { display:none; }  /* resposta em voz toca sem ocupar espaço */
-.topbar { background:#ea1d2c; color:#fff; padding:6px 16px; border-radius:10px; margin-bottom:8px;
+.topbar { background:linear-gradient(90deg,#1e8f4e,#43b36a); color:#fff; padding:6px 16px; border-radius:10px; margin-bottom:8px;
           display:flex; align-items:baseline; gap:12px; }
 .topbar .logo { font-weight:800; font-size:22px; font-style:italic; letter-spacing:-1px; }
 .topbar .sub { font-size:13px; opacity:.9; }
-.empty { border:2px dashed #e8e4e2; border-radius:12px; color:#7a7573; text-align:center;
+.empty { border:2px dashed #cfe5d6; border-radius:12px; color:#5f7a68; background:#f5fbf7; text-align:center;
          padding:120px 24px; font-size:15px; }
-.card { display:flex; gap:10px; height:128px; border:1px solid #e8e4e2; border-radius:12px; background:#fff;
+.card { display:flex; gap:10px; height:128px; border:1px solid #d6eadc; border-radius:12px; background:#fff; color:#1c2b22;
         overflow:hidden; }
-.card.rec { border:2px solid #ea1d2c; }
+.card.rec { border:2px solid #1e8f4e; }
 .card .art { flex:0 0 104px; display:flex; align-items:center; justify-content:center; font-size:38px; overflow:hidden; }
 .card .art img { width:100%; height:100%; object-fit:cover; }
 .card .body { padding:8px 10px 8px 0; min-width:0; display:flex; flex-direction:column; gap:3px; }
-.card h4 { margin:0; padding:0; font-size:14px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.card .rank { color:#ea1d2c; font-weight:800; margin-right:4px; }
-.card .meta { color:#7a7573; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card h4 { margin:0; padding:0; color:#1c2b22; font-weight:700; font-size:14px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .rank { color:#1e8f4e; font-weight:800; margin-right:4px; }
+.card .meta { color:#4f5d54; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .macros { font-size:12px; font-weight:600; color:#3d3a39; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .chips { display:flex; flex-wrap:wrap; gap:4px; }
 .tag { font-size:11px; border-radius:999px; padding:2px 8px; background:#eef6f0; color:#226b3d; }
 .tag.warn { background:#fdf3e2; color:#b7791f; }
 .tag.ok { background:#e8f3fb; color:#1d6fa5; }
 .tag.bad { background:#fde8e8; color:#c4131f; }
-.reason { font-size:12px; color:#c4131f; line-height:1.3; display:-webkit-box; -webkit-line-clamp:3;
+.reason { font-size:12px; color:#1b6e40; line-height:1.3; display:-webkit-box; -webkit-line-clamp:3;
           -webkit-box-orient:vertical; overflow:hidden; }
 .pref-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#7a7573; margin:8px 0 4px; }
 </style>
@@ -242,7 +242,7 @@ def render_prefs(prefs: dict):
 init_state()
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(
-    '<div class="topbar"><span class="logo">ifood</span>'
+    '<div class="topbar"><span class="logo">iFit</span>'
     '<span class="sub">simulador · Agente Nutri</span></div>',
     unsafe_allow_html=True,
 )
