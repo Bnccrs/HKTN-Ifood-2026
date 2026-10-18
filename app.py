@@ -26,7 +26,14 @@ st.set_page_config(page_title="Agente iFit · Simulador iFood", page_icon="🍽�
 
 CSS = """
 <style>
-header[data-testid="stHeader"] { display:none; }
+/* página fixa: sem rolagem (só o chat e a barra lateral rolam por dentro) */
+html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"],
+[data-testid="stAppScrollToBottomContainer"] { overflow:hidden !important; }
+/* o cabeçalho guarda o botão de reabrir a barra lateral: fica transparente, sem menu e deploy */
+header[data-testid="stHeader"] { background:transparent; pointer-events:none; }
+[data-testid="stExpandSidebarButton"] { pointer-events:auto; }
+[data-testid="stExpandSidebarButton"] span { color:#1e8f4e !important; }
+[data-testid="stToolbarActions"], [data-testid="stMainMenu"], [data-testid="stAppDeployButton"] { display:none; }
 .block-container { padding-top:1rem; padding-bottom:4.5rem; }
 /* chat ocupa a altura que sobra na tela (o Streamlit fixa a altura no wrapper do container) */
 [data-testid="stLayoutWrapper"]:has(> .st-key-chat) { flex-basis:max(240px, calc(100vh - 400px)) !important;
